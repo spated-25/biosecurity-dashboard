@@ -19,7 +19,7 @@ function App() {
 
   // 1. Fetch current farm status
   const fetchFarmStatus = () => {
-    fetch('http://localhost:8000/farm-status')
+    fetch('[https://biosecurity-dashboard.onrender.com](https://biosecurity-dashboard.onrender.com)/farm-status')
       .then(response => response.json())
       .then(data => setZones(data))
       .catch(error => console.error("Error fetching data:", error));
@@ -27,7 +27,7 @@ function App() {
 
   // 2. Fetch history for the clicked zone
   const fetchHistory = (zoneId) => {
-    fetch(`http://localhost:8000/zone-history/${zoneId}`)
+    fetch(`https://biosecurity-dashboard.onrender.com/zone-history/${zoneId}`)
       .then(response => response.json())
       .then(data => setHistoryData(data))
       .catch(error => console.error("Error fetching history:", error));
