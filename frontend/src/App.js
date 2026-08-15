@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix for default map pins
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
@@ -12,127 +11,111 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
+const API = process.env.REACT_APP_API_URL || 'https://biosecurity-dashboard.onrender.com';
+
+function Scanner() {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const choose = (f) => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return setError('Please choose an image.');
+    if (f.size > 10 * 1024 * 1024) return setError('Maximum image size is 10 MB.');
+    setError(''); setResult(null); setFile(f); setPreview(URL.createObjectURL(f));
+  };
+
+  const scan = async () => {
+    if (!file) return;
+    setLoading(true); setError('');
+    try {
+      const body = new FormData(); body.append('file', file);
+      const res = await fetch(`${API}/crop-diagnosis`, { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Diagnosis failed');
+      setResult(data);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return <div style={styles.panel}>
+    <h2 style={styles.sectionTitle}>🌿 Crop Disease Scanner</h2>
+    <p style={styles.muted}>Upload a clear leaf, stem, or fruit photo. The image goes to the Farm Signal backend for AI-assisted screening.</p>
+    <input type="file" accept="image/*" onChange={e => choose(e.target.files[0])} />
+    {preview && <img src={preview} alt="Crop sample" style={styles.preview} />}
+    <div style={{marginTop: 14}}><button onClick={scan} disabled={!file || loading} style={styles.button}>{loading ? 'Scanning…' : 'Run diagnosis'}</button></div>
+    {error && <div style={styles.error}>{error}</div>}
+    {result && <div style={styles.result}>
+      <div style={styles.resultTop}><div><small>Crop</small><h3>{result.crop_type}</h3></div><div style={styles.conf}>{result.confidence}%<small>confidence</small></div></div>
+      <h2>{result.disease_name}</h2>
+      {result.scientific_name && <i>{result.scientific_name}</i>}
+      <p><b>Severity:</b> {result.severity}</p>
+      <p>{result.description}</p>
+      <h4>Recommended action</h4>
+      <ul>{(result.recommendations || []).map((x, i) => <li key={i}>{x}</li>)}</ul>
+    </div>}
+  </div>;
+}
+
 function App() {
   const [zones, setZones] = useState([]);
-  const [activeZone, setActiveZone] = useState(null); // Tracks which zone is clicked
-  const [historyData, setHistoryData] = useState([]); // Holds the chart data
+  const [activeZone, setActiveZone] = useState(null);
+  const [historyData, setHistoryData] = useState([]);
+  const [tab, setTab] = useState('dashboard');
+  const [wa, setWa] = useState(null);
 
-  // 1. Fetch current farm status
-  const fetchFarmStatus = () => {
-    fetch('https://biosecurity-dashboard.onrender.com/farm-status')
-      .then(response => response.json())
-      .then(data => setZones(data))
-      .catch(error => console.error("Error fetching data:", error));
-  };
+  const fetchFarmStatus = () => fetch(`${API}/farm-status`).then(r => r.json()).then(setZones).catch(console.error);
+  const fetchHistory = (id) => fetch(`${API}/zone-history/${id}`).then(r => r.json()).then(setHistoryData).catch(console.error);
 
-  // 2. Fetch history for the clicked zone
-  const fetchHistory = (zoneId) => {
-    fetch(`https://biosecurity-dashboard.onrender.com/zone-history/${zoneId}`)
-      .then(response => response.json())
-      .then(data => setHistoryData(data))
-      .catch(error => console.error("Error fetching history:", error));
-  };
+  useEffect(() => { fetchFarmStatus(); const i = setInterval(fetchFarmStatus, 5000); return () => clearInterval(i); }, []);
+  useEffect(() => { if (!activeZone) return; fetchHistory(activeZone); const i = setInterval(() => fetchHistory(activeZone), 5000); return () => clearInterval(i); }, [activeZone]);
+  useEffect(() => { fetch(`${API}/whatsapp/config`).then(r => r.json()).then(setWa).catch(() => {}); }, []);
 
-  // Auto-refresh the main map
-  useEffect(() => {
-    fetchFarmStatus();
-    const interval = setInterval(fetchFarmStatus, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-refresh the chart when a zone is clicked
-  useEffect(() => {
-    if (activeZone) {
-      fetchHistory(activeZone);
-      const historyInterval = setInterval(() => fetchHistory(activeZone), 3000);
-      return () => clearInterval(historyInterval);
-    }
-  }, [activeZone]);
-
-  return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* --- LEFT SIDEBAR --- */}
-      <div style={{ width: '400px', backgroundColor: '#0f172a', color: 'white', padding: '20px', overflowY: 'auto', zIndex: 1000, boxShadow: '5px 0 15px rgba(0,0,0,0.5)' }}>
-        <h1 style={{ fontSize: '24px', margin: '0 0 5px 0', fontWeight: 'bold', color: '#38bdf8' }}>Biosecurity Command</h1>
-        <p style={{ margin: '0 0 30px 0', color: '#94a3b8', fontSize: '14px' }}>Live Farm Monitoring System</p>
-        
-        {/* Zones List */}
-        <h2 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#64748b', marginBottom: '10px', letterSpacing: '1px' }}>Zone Status (Click for Trends)</h2>
-        
+  return <div style={styles.app}>
+    <aside style={styles.sidebar}>
+      <h1 style={styles.title}>Biosecurity Command</h1>
+      <p style={styles.muted}>Farm Signal · Live Monitoring</p>
+      <div style={styles.nav}>
+        <button onClick={() => setTab('dashboard')} style={tab === 'dashboard' ? styles.navActive : styles.navBtn}>📊 Dashboard</button>
+        <button onClick={() => setTab('scanner')} style={tab === 'scanner' ? styles.navActive : styles.navBtn}>🌿 Crop Scanner</button>
+        <button onClick={() => setTab('whatsapp')} style={tab === 'whatsapp' ? styles.navActive : styles.navBtn}>💬 WhatsApp</button>
+      </div>
+      {tab === 'dashboard' && <>
+        <h2 style={styles.label}>Zone Status</h2>
         {zones.map(zone => {
-          let statusColor = zone.risk >= 80 ? '#ef4444' : zone.risk >= 50 ? '#eab308' : '#22c55e';
-          const isActive = activeZone === zone.id;
-
-          return (
-            <div 
-              key={zone.id} 
-              onClick={() => setActiveZone(isActive ? null : zone.id)}
-              style={{ 
-                backgroundColor: isActive ? '#334155' : '#1e293b', 
-                padding: '16px', 
-                borderRadius: '12px', 
-                marginBottom: '12px', 
-                borderLeft: `6px solid ${statusColor}`,
-                cursor: 'pointer',
-                transition: '0.3s'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc' }}>{zone.name}</h3>
-                <span style={{ fontSize: '18px', fontWeight: 'bold', color: statusColor }}>{zone.risk}%</span>
-              </div>
-              <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#cbd5e1' }}>{zone.status}</p>
-              
-              {zone.note && (
-                <div style={{ marginTop: '12px', padding: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px' }}>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#fca5a5', fontStyle: 'italic' }}>⚠️ {zone.note}</p>
-                </div>
-              )}
-
-              {/* --- LIVE CHART SECTION --- */}
-              {isActive && historyData.length > 0 && (
-                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px', textAlign: 'center' }}>Live Risk Trend</p>
-                  
-                  {/* We removed ResponsiveContainer and hardcoded width/height directly into the LineChart */}
-                  <LineChart width={320} height={140} data={historyData}>
-                    <XAxis dataKey="time" stroke="#64748b" fontSize={10} />
-                    <YAxis stroke="#64748b" fontSize={10} domain={[0, 100]} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', color: '#fff', borderRadius: '8px' }} />
-                    <Line type="monotone" dataKey="risk" stroke={statusColor} strokeWidth={3} dot={{ r: 4 }} animationDuration={300} />
-                  </LineChart>
-                  
-                </div>
-              )}
-            </div>
-          );
+          const color = zone.risk >= 80 ? '#ef4444' : zone.risk >= 50 ? '#eab308' : '#22c55e';
+          const active = activeZone === zone.id;
+          return <div key={zone.id} onClick={() => setActiveZone(active ? null : zone.id)} style={{...styles.zone, borderLeft: `5px solid ${color}`, background: active ? '#334155' : '#1e293b'}}>
+            <div style={styles.zoneHead}><b>{zone.name}</b><strong style={{color}}>{zone.risk}%</strong></div>
+            <div>{zone.status}</div>{zone.note && <small style={{color:'#fca5a5'}}>⚠️ {zone.note}</small>}
+            {active && historyData.length > 0 && <LineChart width={320} height={140} data={historyData}><XAxis dataKey="time" stroke="#94a3b8" fontSize={10}/><YAxis domain={[0,100]} stroke="#94a3b8" fontSize={10}/><Tooltip/><Line type="monotone" dataKey="risk" stroke={color} strokeWidth={3}/></LineChart>}
+          </div>;
         })}
-      </div>
+      </>}
+    </aside>
 
-      {/* --- RIGHT MAP AREA --- */}
-      <div style={{ flex: 1 }}>
-        <MapContainer center={[13.0827, 80.2707]} zoom={16} style={{ height: "100%", width: "100%" }}>
-          <TileLayer 
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          {zones.map(zone => (
-            <Marker key={zone.id} position={[zone.lat, zone.lng]}>
-              <Popup>
-                <div style={{ textAlign: 'center' }}>
-                  <h3 style={{ margin: '0 0 5px 0', fontSize: '16px' }}>{zone.name}</h3>
-                  <p style={{ margin: 0, fontSize: '14px' }}>Risk: <strong>{zone.risk}%</strong></p>
-                  <p style={{ margin: 0, fontSize: '14px' }}>Status: {zone.status}</p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-      </div>
-      
-    </div>
-  );
+    <main style={styles.main}>
+      {tab === 'dashboard' && <MapContainer center={[13.0827,80.2707]} zoom={16} style={{height:'100%',width:'100%'}}>
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors'/>
+        {zones.map(z => <Marker key={z.id} position={[z.lat,z.lng]}><Popup><b>{z.name}</b><br/>Risk: {z.risk}%<br/>{z.status}<br/>{z.note || ''}</Popup></Marker>)}
+      </MapContainer>}
+      {tab === 'scanner' && <div style={styles.content}><Scanner/></div>}
+      {tab === 'whatsapp' && <div style={styles.content}><div style={styles.panel}>
+        <h2 style={styles.sectionTitle}>💬 WhatsApp connection</h2>
+        <p>This dashboard uses the backend WhatsApp webhook. The farmer messages your <b>WhatsApp Business number</b>, not the Vercel website number.</p>
+        <div style={styles.info}><b>Configured:</b> {wa ? (wa.configured ? 'Yes' : 'No') : 'Checking…'}<br/><b>Business number:</b> {wa?.display_number || 'Not configured'}</div>
+        <p style={styles.muted}>The actual number is the WhatsApp Business number connected in Meta WhatsApp Cloud API. It must be configured in the backend as <code>WHATSAPP_DISPLAY_NUMBER</code>, with its Phone Number ID, access token, and webhook verify token kept as server environment variables.</p>
+      </div></div>}
+    </main>
+  </div>;
 }
+
+const styles = {
+  app:{display:'flex',height:'100vh',fontFamily:'system-ui,sans-serif',background:'#0f172a',color:'white'},
+  sidebar:{width:400,background:'#0f172a',padding:20,overflowY:'auto',zIndex:1000,boxShadow:'5px 0 15px rgba(0,0,0,.5)'},
+  main:{flex:1,minWidth:0}, title:{fontSize:24,color:'#38bdf8',margin:'0 0 5px'}, muted:{color:'#94a3b8',fontSize:14,lineHeight:1.5}, nav:{display:'flex',gap:8,margin:'22px 0',flexWrap:'wrap'}, navBtn:{background:'#1e293b',border:0,color:'#cbd5e1',padding:'10px 12px',borderRadius:8,cursor:'pointer'}, navActive:{background:'#0284c7',border:0,color:'white',padding:'10px 12px',borderRadius:8,cursor:'pointer'}, label:{fontSize:13,color:'#64748b',textTransform:'uppercase',letterSpacing:1}, zone:{padding:16,borderRadius:12,marginBottom:12,cursor:'pointer'}, zoneHead:{display:'flex',justifyContent:'space-between',marginBottom:8}, content:{height:'100%',overflowY:'auto',padding:30,background:'#111827'}, panel:{maxWidth:800,margin:'0 auto',background:'#1e293b',padding:28,borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.25)'}, sectionTitle:{marginTop:0}, button:{background:'#16a34a',color:'white',border:0,padding:'12px 20px',borderRadius:8,fontWeight:700,cursor:'pointer'}, preview:{display:'block',maxWidth:'100%',maxHeight:350,marginTop:20,borderRadius:12}, error:{background:'#451a1a',color:'#fca5a5',padding:12,borderRadius:8,marginTop:16}, result:{marginTop:24,background:'#f4efdf',color:'#2b2318',padding:24,borderRadius:12}, resultTop:{display:'flex',justifyContent:'space-between',gap:20}, resultTop h3:{margin:'4px 0'}, conf:{fontSize:28,fontWeight:800,textAlign:'right'}, confSmall:{display:'block',fontSize:11}, info:{background:'#0f172a',padding:16,borderRadius:10,lineHeight:1.9}
+};
 
 export default App;
