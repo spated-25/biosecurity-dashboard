@@ -113,9 +113,50 @@ function App() {
 }
 
 const styles = {
-  app:{display:'flex',height:'100vh',fontFamily:'system-ui,sans-serif',background:'#0f172a',color:'white'},
-  sidebar:{width:400,background:'#0f172a',padding:20,overflowY:'auto',zIndex:1000,boxShadow:'5px 0 15px rgba(0,0,0,.5)'},
-  main:{flex:1,minWidth:0}, title:{fontSize:24,color:'#38bdf8',margin:'0 0 5px'}, muted:{color:'#94a3b8',fontSize:14,lineHeight:1.5}, nav:{display:'flex',gap:8,margin:'22px 0',flexWrap:'wrap'}, navBtn:{background:'#1e293b',border:0,color:'#cbd5e1',padding:'10px 12px',borderRadius:8,cursor:'pointer'}, navActive:{background:'#0284c7',border:0,color:'white',padding:'10px 12px',borderRadius:8,cursor:'pointer'}, label:{fontSize:13,color:'#64748b',textTransform:'uppercase',letterSpacing:1}, zone:{padding:16,borderRadius:12,marginBottom:12,cursor:'pointer'}, zoneHead:{display:'flex',justifyContent:'space-between',marginBottom:8}, content:{height:'100%',overflowY:'auto',padding:30,background:'#111827'}, panel:{maxWidth:800,margin:'0 auto',background:'#1e293b',padding:28,borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.25)'}, sectionTitle:{marginTop:0}, button:{background:'#16a34a',color:'white',border:0,padding:'12px 20px',borderRadius:8,fontWeight:700,cursor:'pointer'}, preview:{display:'block',maxWidth:'100%',maxHeight:350,marginTop:20,borderRadius:12}, error:{background:'#451a1a',color:'#fca5a5',padding:12,borderRadius:8,marginTop:16}, result:{marginTop:24,background:'#f4efdf',color:'#2b2318',padding:24,borderRadius:12}, resultTop:{display:'flex',justifyContent:'space-between',gap:20}, resultTop h3:{margin:'4px 0'}, conf:{fontSize:28,fontWeight:800,textAlign:'right'}, confSmall:{display:'block',fontSize:11}, info:{background:'#0f172a',padding:16,borderRadius:10,lineHeight:1.9}
-};
+  app: {
+    display: 'flex',
+    height: '100vh',
+    fontFamily: 'Inter, Arial, sans-serif',
+    background: '#f8fafc',
+    color: '#0f172a'
+  },
 
+  sidebar: {
+    width: 280,
+    background: '#0f172a',
+    padding: 20,
+    color: '#fff',
+    flexShrink: 0
+  },
+
+  main: {
+    flex: 1,
+    minWidth: 0,
+    overflowY: 'auto',
+    padding: 24
+  },
+
+  title: {
+    fontSize: 24,
+    color: '#fff',
+    margin: 0
+  },
+
+  content: {
+    maxWidth: 1200,
+    margin: '0 auto'
+  },
+
+  info: {
+    padding: 16,
+    borderRadius: 10,
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    marginBottom: 20
+  },
+
+  muted: {
+    color: '#64748b'
+  }
+};
 export default App;
