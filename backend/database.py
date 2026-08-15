@@ -6,10 +6,18 @@ from sqlalchemy.orm import sessionmaker
 # 1. Grab the Render URL from the cloud environment
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_farm.db")
 
-# 2. Render sometimes uses 'postgres://', but SQLAlchemy requires 'postgresql://'
+# 2. Render uses 'postgres://', but SQLAlchemy requires 'postgresql://'
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# 3. Dependency to get database session (Fixes the ImportError)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
