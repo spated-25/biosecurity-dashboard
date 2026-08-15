@@ -19,7 +19,7 @@ function App() {
 
   // 1. Fetch current farm status
   const fetchFarmStatus = () => {
-    fetch('[https://biosecurity-dashboard.onrender.com](https://biosecurity-dashboard.onrender.com)/farm-status')
+    fetch('https://biosecurity-dashboard.onrender.com/farm-status')
       .then(response => response.json())
       .then(data => setZones(data))
       .catch(error => console.error("Error fetching data:", error));
