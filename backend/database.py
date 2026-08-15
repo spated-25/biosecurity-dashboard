@@ -1,17 +1,15 @@
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-# ⚠️ UPDATE THIS LINE with your actual PostgreSQL credentials
-# Format: postgresql://username:password@localhost:5432/database_name
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:admin@localhost:5432/poultry_db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# 1. Grab the Render URL from the cloud environment
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_farm.db")
+
+# 2. Render sometimes uses 'postgres://', but SQLAlchemy requires 'postgresql://'
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-# Dependency to get the DB session for our routes
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
