@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+} from 'react-leaflet';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from 'recharts';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -15,6 +26,10 @@ L.Icon.Default.mergeOptions({
 const API =
   process.env.REACT_APP_API_URL ||
   'http://localhost:8000';
+
+/* =========================================================
+   POULTRY AI SCANNER
+========================================================= */
 
 function PoultryScanner() {
   const [file, setFile] = useState(null);
@@ -74,7 +89,9 @@ function PoultryScanner() {
 
       setResult(data);
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message || 'Poultry detection failed.'
+      );
     } finally {
       setLoading(false);
     }
@@ -87,8 +104,8 @@ function PoultryScanner() {
       </h2>
 
       <p style={styles.muted}>
-        Upload a clear poultry/bird photo for AI-assisted
-        poultry health screening.
+        Upload a clear poultry/bird photo for
+        AI-assisted poultry health screening.
       </p>
 
       <input
@@ -112,7 +129,10 @@ function PoultryScanner() {
       <button
         onClick={runDetection}
         disabled={!file || loading}
-        style={styles.button}
+        style={{
+          ...styles.button,
+          opacity: !file || loading ? 0.6 : 1,
+        }}
       >
         {loading
           ? 'Screening...'
@@ -130,6 +150,7 @@ function PoultryScanner() {
           <div style={styles.resultHeader}>
             <div>
               <small>Bird type</small>
+
               <h3>
                 {result.bird_type ||
                   'Unidentified bird'}
@@ -202,6 +223,10 @@ function PoultryScanner() {
   );
 }
 
+/* =========================================================
+   DEMO WHATSAPP MESSAGES
+========================================================= */
+
 const demoMessages = [
   {
     name: 'Ravi Kumar',
@@ -238,8 +263,8 @@ function DemoMessages() {
         </h2>
 
         <p style={styles.muted}>
-          Demo messages from poultry farmers reporting
-          poultry problems.
+          Demo messages from poultry farmers
+          reporting poultry problems.
         </p>
 
         <div style={styles.demoBadge}>
@@ -281,6 +306,91 @@ function DemoMessages() {
   );
 }
 
+/* =========================================================
+   FARM PROBLEM MARKERS
+========================================================= */
+
+const poultryProblems = [
+  {
+    id: 'p1',
+    name: 'Ravi Kumar',
+    lat: 13.0832,
+    lng: 80.2698,
+    message:
+      'Some of my chickens are not eating and look weak.',
+    risk: 'High',
+  },
+  {
+    id: 'p2',
+    name: 'Priya Sharma',
+    lat: 13.0845,
+    lng: 80.2715,
+    message:
+      'A few birds have coughing and breathing problems.',
+    risk: 'High',
+  },
+  {
+    id: 'p3',
+    name: 'Arun Patel',
+    lat: 13.0818,
+    lng: 80.2725,
+    message:
+      'Several chickens have reduced activity and watery droppings.',
+    risk: 'Moderate',
+  },
+  {
+    id: 'p4',
+    name: 'Meena Devi',
+    lat: 13.0808,
+    lng: 80.2688,
+    message:
+      'Two birds look sick and are staying away from the flock.',
+    risk: 'Moderate',
+  },
+];
+
+/* =========================================================
+   PROBLEM MARKER COMPONENT
+========================================================= */
+
+function PoultryProblemMarkers() {
+  return (
+    <>
+      {poultryProblems.map((problem) => (
+        <Marker
+          key={problem.id}
+          position={[
+            problem.lat,
+            problem.lng,
+          ]}
+        >
+          <Popup>
+            <div>
+              <h3>🐔 Poultry Problem</h3>
+
+              <b>
+                👤 {problem.name}
+              </b>
+
+              <p>
+                💬 {problem.message}
+              </p>
+
+              <strong>
+                ⚠️ {problem.risk} Risk
+              </strong>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  );
+}
+
+/* =========================================================
+   APP
+========================================================= */
+
 function App() {
   const [zones, setZones] = useState([]);
   const [activeZone, setActiveZone] =
@@ -292,8 +402,20 @@ function App() {
 
   const fetchFarmStatus = () => {
     fetch(`${API}/farm-status`)
-      .then((response) => response.json())
-      .then((data) => setZones(data))
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            'Farm status request failed'
+          );
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        setZones(
+          Array.isArray(data) ? data : []
+        );
+      })
       .catch((error) =>
         console.error(
           'Farm status error:',
@@ -304,8 +426,20 @@ function App() {
 
   const fetchHistory = (zoneId) => {
     fetch(`${API}/zone-history/${zoneId}`)
-      .then((response) => response.json())
-      .then((data) => setHistoryData(data))
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            'Zone history request failed'
+          );
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        setHistoryData(
+          Array.isArray(data) ? data : []
+        );
+      })
       .catch((error) =>
         console.error(
           'Zone history error:',
@@ -327,7 +461,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!activeZone) return;
+    if (!activeZone) {
+      setHistoryData([]);
+      return;
+    }
 
     fetchHistory(activeZone);
 
@@ -342,6 +479,10 @@ function App() {
 
   return (
     <div style={styles.app}>
+      {/* =================================================
+          SIDEBAR
+      ================================================= */}
+
       <aside style={styles.sidebar}>
         <h1 style={styles.title}>
           Biosecurity Command
@@ -392,278 +533,95 @@ function App() {
           </button>
         </div>
 
-        {tab === 'dashboard' && (
-  <div style={styles.dashboard}>
-
-    {/* GLOBAL OVERVIEW */}
-    <h2 style={styles.overviewTitle}>GLOBAL OVERVIEW</h2>
-
-    <div style={styles.totalCard}>
-      <div style={styles.totalLabel}>
-        Total Birds Monitored
-      </div>
-      <div style={styles.totalNumber}>
-        24,500
-      </div>
-    </div>
-
-    {/* ZONE STATUS */}
-    <h2 style={styles.overviewTitle}>
-      ZONE STATUS ({zones.length || 3})
-    </h2>
-
-    <div style={styles.zoneCards}>
-
-      {zones.map((zone) => {
-        const risk = Number(zone.risk || 0);
-
-        const riskColor =
-          risk >= 90
-            ? '#ef4444'
-            : risk >= 70
-            ? '#f97316'
-            : '#eab308';
-
-        const status =
-          risk >= 90
-            ? 'Critical Risk'
-            : risk >= 70
-            ? 'High Risk'
-            : 'Normal';
-
-        return (
-          <div
-            key={zone.id}
-            style={{
-              ...styles.dashboardZone,
-              borderLeft:
-                `6px solid ${riskColor}`
-            }}
-          >
-
-            <div style={styles.dashboardZoneTop}>
-              <div>
-                <h3 style={styles.dashboardZoneName}>
-                  {zone.name}
-                </h3>
-
-                <div style={styles.dashboardStatus}>
-                  <span
-                    style={{
-                      ...styles.statusDot,
-                      background: riskColor
-                    }}
-                  />
-
-                  {zone.status || status}
-                </div>
-              </div>
-
-              <strong
-                style={{
-                  ...styles.dashboardRisk,
-                  color: riskColor
-                }}
-              >
-                {risk}%
-              </strong>
-            </div>
-
-            {zone.note && (
-              <div
-                style={{
-                  ...styles.alertBox,
-                  borderLeft:
-                    `4px solid ${riskColor}`
-                }}
-              >
-                ⚠️ {zone.note}
-              </div>
-            )}
-
-            {!zone.note && risk >= 70 && (
-              <div
-                style={{
-                  ...styles.alertBox,
-                  borderLeft:
-                    `4px solid ${riskColor}`
-                }}
-              >
-                ⚠️ Poultry health risk detected
-              </div>
-            )}
-
+        {/* ZONE LIST */}
+        <div>
+          <div style={styles.label}>
+            FARM ZONES
           </div>
-        );
-      })}
 
-    </div>
+          {zones.length === 0 && (
+            <div
+              style={{
+                color: '#94a3b8',
+                fontSize: 13,
+                padding: 10,
+              }}
+            >
+              Loading zones...
+            </div>
+          )}
 
-    {/* MAP */}
-    <h2 style={styles.overviewTitle}>
-      LIVE FARM MAP
-    </h2>
+          {zones.map((zone) => {
+            const risk = Number(
+              zone.risk || 0
+            );
 
-    <div style={styles.mapBox}>
-      <MapContainer
-        center={[13.0827, 80.2707]}
-        zoom={16}
-        style={{
-          height: '500px',
-          width: '100%'
-        }}
-      >
+            const riskColor =
+              risk >= 80
+                ? '#ef4444'
+                : risk >= 50
+                ? '#eab308'
+                : '#22c55e';
 
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; OpenStreetMap contributors"
-        />
+            const active =
+              activeZone === zone.id;
 
-        {/* FARM ZONES */}
-        {zones.map(z => (
-          <Marker
-            key={z.id}
-            position={[z.lat, z.lng]}
-          >
-            <Popup>
-              <b>{z.name}</b>
-              <br />
-              Risk: {z.risk}%
-              <br />
-              {z.status}
-              <br />
-              {z.note || ''}
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* POULTRY PROBLEM MARKERS */}
-        {[
-          {
-            id: 'p1',
-            name: 'Ravi Kumar',
-            lat: 13.0832,
-            lng: 80.2698,
-            message:
-              'Some of my chickens are not eating and look weak.',
-            risk: 'High'
-          },
-          {
-            id: 'p2',
-            name: 'Priya Sharma',
-            lat: 13.0845,
-            lng: 80.2715,
-            message:
-              'A few birds have coughing and breathing problems.',
-            risk: 'High'
-          },
-          {
-            id: 'p3',
-            name: 'Arun Patel',
-            lat: 13.0818,
-            lng: 80.2725,
-            message:
-              'Several chickens have reduced activity and watery droppings.',
-            risk: 'Moderate'
-          },
-          {
-            id: 'p4',
-            name: 'Meena Devi',
-            lat: 13.0808,
-            lng: 80.2688,
-            message:
-              'Two birds look sick and are staying away from the flock.',
-            risk: 'Moderate'
-          }
-        ].map(problem => (
-          <Marker
-            key={problem.id}
-            position={[
-              problem.lat,
-              problem.lng
-            ]}
-          >
-            <Popup>
-              <div>
-                <h3>🐔 Poultry Problem</h3>
-                <b>👤 {problem.name}</b>
-
-                <p>
-                  💬 {problem.message}
-                </p>
-
-                <strong>
-                  ⚠️ {problem.risk} Risk
-                </strong>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-      </MapContainer>
-    </div>
-
-  </div>
-)}
-
-              const riskColor =
-                risk >= 80
-                  ? '#ef4444'
-                  : risk >= 50
-                  ? '#eab308'
-                  : '#22c55e';
-
-              const active =
-                activeZone === zone.id;
-
-              return (
+            return (
+              <div
+                key={zone.id}
+                onClick={() =>
+                  setActiveZone(
+                    active
+                      ? null
+                      : zone.id
+                  )
+                }
+                style={{
+                  ...styles.zone,
+                  borderLeft:
+                    `5px solid ${riskColor}`,
+                  background: active
+                    ? '#334155'
+                    : '#1e293b',
+                }}
+              >
                 <div
-                  key={zone.id}
-                  onClick={() =>
-                    setActiveZone(
-                      active
-                        ? null
-                        : zone.id
-                    )
-                  }
-                  style={{
-                    ...styles.zone,
-                    borderLeft: `5px solid ${riskColor}`,
-                    background: active
-                      ? '#334155'
-                      : '#1e293b',
-                  }}
+                  style={styles.zoneHeader}
                 >
-                  <div
-                    style={styles.zoneHeader}
-                  >
-                    <b>{zone.name}</b>
+                  <b>{zone.name}</b>
 
-                    <strong
+                  <strong
+                    style={{
+                      color: riskColor,
+                    }}
+                  >
+                    {risk}%
+                  </strong>
+                </div>
+
+                <div>
+                  {zone.status ||
+                    'Unknown'}
+                </div>
+
+                {zone.note && (
+                  <small
+                    style={
+                      styles.warningText
+                    }
+                  >
+                    ⚠️ {zone.note}
+                  </small>
+                )}
+
+                {active &&
+                  historyData.length > 0 && (
+                    <div
                       style={{
-                        color: riskColor,
+                        marginTop: 12,
+                        overflowX: 'auto',
                       }}
                     >
-                      {risk}%
-                    </strong>
-                  </div>
-
-                  <div>
-                    {zone.status}
-                  </div>
-
-                  {zone.note && (
-                    <small
-                      style={
-                        styles.warningText
-                      }
-                    >
-                      ⚠️ {zone.note}
-                    </small>
-                  )}
-
-                  {active &&
-                    historyData.length > 0 && (
                       <LineChart
                         width={230}
                         height={140}
@@ -690,109 +648,240 @@ function App() {
                           strokeWidth={3}
                         />
                       </LineChart>
-                    )}
-                </div>
-              );
-            })}
-          </>
-        )}
+                    </div>
+                  )}
+              </div>
+            );
+          })}
+        </div>
       </aside>
 
-      <main style={styles.main}>
-        {tab === 'dashboard' && (
-          <MapContainer
-            center={[
-              13.0827,
-              80.2707,
-            ]}
-            zoom={16}
-            style={{
-              height: '100%',
-              width: '100%',
-            }}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="&copy; OpenStreetMap contributors"
-            />
-              {[
-  {
-    id: 'p1',
-    name: 'Ravi Kumar',
-    lat: 13.0832,
-    lng: 80.2698,
-    message: 'Some of my chickens are not eating and look weak.',
-    risk: 'High'
-  },
-  {
-    id: 'p2',
-    name: 'Priya Sharma',
-    lat: 13.0845,
-    lng: 80.2715,
-    message: 'A few birds have coughing and breathing problems.',
-    risk: 'High'
-  },
-  {
-    id: 'p3',
-    name: 'Arun Patel',
-    lat: 13.0818,
-    lng: 80.2725,
-    message: 'Several chickens have reduced activity and watery droppings.',
-    risk: 'Moderate'
-  },
-  {
-    id: 'p4',
-    name: 'Meena Devi',
-    lat: 13.0808,
-    lng: 80.2688,
-    message: 'Two birds look sick and are staying away from the flock.',
-    risk: 'Moderate'
-  }
-].map(problem => (
-  <Marker
-    key={problem.id}
-    position={[problem.lat, problem.lng]}
-  >
-    <Popup>
-      <div>
-        <h3>🐔 Poultry Problem</h3>
-        <b>👤 {problem.name}</b>
-        <p>💬 {problem.message}</p>
-        <strong>
-          ⚠️ {problem.risk} Risk
-        </strong>
-      </div>
-    </Popup>
-  </Marker>
-))}
+      {/* =================================================
+          MAIN CONTENT
+      ================================================= */}
 
-            {zones.map((zone) => (
-              <Marker
-                key={zone.id}
-                position={[
-                  zone.lat,
-                  zone.lng,
-                ]}
+      <main style={styles.main}>
+        {/* =================================================
+            DASHBOARD
+        ================================================= */}
+
+        {tab === 'dashboard' && (
+          <div style={styles.dashboard}>
+            <h2
+              style={
+                styles.overviewTitle
+              }
+            >
+              GLOBAL OVERVIEW
+            </h2>
+
+            <div style={styles.totalCard}>
+              <div
+                style={styles.totalLabel}
               >
-                <Popup>
-                  <b>{zone.name}</b>
-                  <br />
-                  Risk: {zone.risk}%
-                  <br />
-                  {zone.status}
-                  <br />
-                  {zone.note || ''}
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+                Total Birds Monitored
+              </div>
+
+              <div
+                style={styles.totalNumber}
+              >
+                24,500
+              </div>
+            </div>
+
+            <h2
+              style={
+                styles.overviewTitle
+              }
+            >
+              ZONE STATUS (
+              {zones.length || 3})
+            </h2>
+
+            <div
+              style={styles.zoneCards}
+            >
+              {zones.map((zone) => {
+                const risk = Number(
+                  zone.risk || 0
+                );
+
+                const riskColor =
+                  risk >= 90
+                    ? '#ef4444'
+                    : risk >= 70
+                    ? '#f97316'
+                    : '#eab308';
+
+                const status =
+                  risk >= 90
+                    ? 'Critical Risk'
+                    : risk >= 70
+                    ? 'High Risk'
+                    : 'Normal';
+
+                return (
+                  <div
+                    key={zone.id}
+                    style={{
+                      ...styles.dashboardZone,
+                      borderLeft:
+                        `6px solid ${riskColor}`,
+                    }}
+                  >
+                    <div
+                      style={
+                        styles.dashboardZoneTop
+                      }
+                    >
+                      <div>
+                        <h3
+                          style={
+                            styles.dashboardZoneName
+                          }
+                        >
+                          {zone.name}
+                        </h3>
+
+                        <div
+                          style={
+                            styles.dashboardStatus
+                          }
+                        >
+                          <span
+                            style={{
+                              ...styles.statusDot,
+                              background:
+                                riskColor,
+                            }}
+                          />
+
+                          {zone.status ||
+                            status}
+                        </div>
+                      </div>
+
+                      <strong
+                        style={{
+                          ...styles.dashboardRisk,
+                          color:
+                            riskColor,
+                        }}
+                      >
+                        {risk}%
+                      </strong>
+                    </div>
+
+                    {zone.note && (
+                      <div
+                        style={{
+                          ...styles.alertBox,
+                          borderLeft:
+                            `4px solid ${riskColor}`,
+                        }}
+                      >
+                        ⚠️ {zone.note}
+                      </div>
+                    )}
+
+                    {!zone.note &&
+                      risk >= 70 && (
+                        <div
+                          style={{
+                            ...styles.alertBox,
+                            borderLeft:
+                              `4px solid ${riskColor}`,
+                          }}
+                        >
+                          ⚠️ Poultry health
+                          risk detected
+                        </div>
+                      )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* =================================================
+                LIVE FARM MAP
+            ================================================= */}
+
+            <h2
+              style={
+                styles.overviewTitle
+              }
+            >
+              LIVE FARM MAP
+            </h2>
+
+            <div style={styles.mapBox}>
+              <MapContainer
+                center={[
+                  13.0827,
+                  80.2707,
+                ]}
+                zoom={16}
+                style={{
+                  height: '500px',
+                  width: '100%',
+                }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap contributors"
+                />
+
+                {/* FARM ZONES */}
+
+                {zones.map((zone) => (
+                  <Marker
+                    key={zone.id}
+                    position={[
+                      zone.lat,
+                      zone.lng,
+                    ]}
+                  >
+                    <Popup>
+                      <b>
+                        {zone.name}
+                      </b>
+
+                      <br />
+
+                      Risk: {zone.risk}%
+
+                      <br />
+
+                      {zone.status}
+
+                      <br />
+
+                      {zone.note || ''}
+                    </Popup>
+                  </Marker>
+                ))}
+
+                {/* POULTRY PROBLEMS */}
+
+                <PoultryProblemMarkers />
+              </MapContainer>
+            </div>
+          </div>
         )}
+
+        {/* =================================================
+            SCANNER
+        ================================================= */}
 
         {tab === 'scanner' && (
           <div style={styles.content}>
             <PoultryScanner />
           </div>
         )}
+
+        {/* =================================================
+            MESSAGES
+        ================================================= */}
 
         {tab === 'messages' && (
           <DemoMessages />
@@ -801,6 +890,10 @@ function App() {
     </div>
   );
 }
+
+/* =========================================================
+   STYLES
+========================================================= */
 
 const styles = {
   app: {
@@ -1021,10 +1114,11 @@ const styles = {
     fontSize: 12,
     fontWeight: 'bold',
   },
+
   dashboard: {
     padding: 24,
     maxWidth: 1200,
-    margin: '0 auto'
+    margin: '0 auto',
   },
 
   overviewTitle: {
@@ -1033,7 +1127,7 @@ const styles = {
     marginTop: 10,
     marginBottom: 18,
     color: '#334155',
-    fontWeight: 800
+    fontWeight: 800,
   },
 
   totalCard: {
@@ -1043,18 +1137,18 @@ const styles = {
     padding: 28,
     marginBottom: 32,
     boxShadow:
-      '0 8px 25px rgba(0,0,0,0.12)'
+      '0 8px 25px rgba(0,0,0,0.12)',
   },
 
   totalLabel: {
     fontSize: 17,
     marginBottom: 12,
-    color: '#cbd5e1'
+    color: '#cbd5e1',
   },
 
   totalNumber: {
     fontSize: 48,
-    fontWeight: 800
+    fontWeight: 800,
   },
 
   zoneCards: {
@@ -1062,7 +1156,7 @@ const styles = {
     gridTemplateColumns:
       'repeat(auto-fit, minmax(280px, 1fr))',
     gap: 18,
-    marginBottom: 30
+    marginBottom: 30,
   },
 
   dashboardZone: {
@@ -1072,18 +1166,18 @@ const styles = {
     padding: 20,
     minHeight: 145,
     boxShadow:
-      '0 6px 18px rgba(0,0,0,0.12)'
+      '0 6px 18px rgba(0,0,0,0.12)',
   },
 
   dashboardZoneTop: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
   },
 
   dashboardZoneName: {
     margin: 0,
-    fontSize: 20
+    fontSize: 20,
   },
 
   dashboardStatus: {
@@ -1091,18 +1185,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    color: '#cbd5e1'
+    color: '#cbd5e1',
   },
 
   statusDot: {
     width: 13,
     height: 13,
     borderRadius: '50%',
-    display: 'inline-block'
+    display: 'inline-block',
   },
 
   dashboardRisk: {
-    fontSize: 28
+    fontSize: 28,
   },
 
   alertBox: {
@@ -1111,14 +1205,15 @@ const styles = {
     background: '#3b2630',
     color: '#fecaca',
     fontSize: 13,
-    borderRadius: 5
+    borderRadius: 5,
   },
 
   mapBox: {
     borderRadius: 14,
     overflow: 'hidden',
     border: '1px solid #e2e8f0',
-    marginBottom: 30
-  },};
+    marginBottom: 30,
+  },
+};
 
 export default App;
