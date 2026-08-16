@@ -5,62 +5,76 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 delete L.Icon.Default.prototype._getIconUrl;
+
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
   iconUrl: require('leaflet/dist/images/marker-icon.png'),
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-const API = process.env.REACT_APP_API_URL || 'https://biosecurity-dashboard.onrender.com';
+const API =
+  process.env.REACT_APP_API_URL ||
+  'http://localhost:8000';
 
-function Scanner() {
+function PoultryScanner() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const choose = (f) => {
-    if (!f) return;
+  const chooseFile = (selectedFile) => {
+    if (!selectedFile) return;
 
-    if (!f.type.startsWith('image/')) {
-      return setError('Please choose an image.');
+    if (!selectedFile.type.startsWith('image/')) {
+      setError('Please select an image.');
+      return;
     }
 
-    if (f.size > 10 * 1024 * 1024) {
-      return setError('Maximum image size is 10 MB.');
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('Image must be smaller than 10 MB.');
+      return;
     }
 
     setError('');
     setResult(null);
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    setFile(selectedFile);
+    setPreview(URL.createObjectURL(selectedFile));
   };
 
-  const scan = async () => {
-    if (!file) return;
+  const runDetection = async () => {
+    if (!file) {
+      setError('Please upload a poultry image first.');
+      return;
+    }
 
     setLoading(true);
     setError('');
+    setResult(null);
 
     try {
       const body = new FormData();
       body.append('file', file);
 
-      const res = await fetch(`${API}/poultry-diagnosis`, {
-        method: 'POST',
-        body
-      });
+      const response = await fetch(
+        `${API}/poultry-diagnosis`,
+        {
+          method: 'POST',
+          body,
+        }
+      );
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
-        throw new Error(data.detail || 'Poultry screening failed');
+      if (!response.ok) {
+        throw new Error(
+          data.detail || 'Poultry detection failed.'
+        );
       }
 
       setResult(data);
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -68,17 +82,21 @@ function Scanner() {
 
   return (
     <div style={styles.panel}>
-      <h2 style={styles.sectionTitle}>🐔 Poultry Health Scanner</h2>
+      <h2 style={styles.sectionTitle}>
+        🐔 Poultry Health Scanner
+      </h2>
 
       <p style={styles.muted}>
-        Upload a clear poultry/bird photo. The image goes to the Farm Signal
-        backend for AI-assisted health screening.
+        Upload a clear poultry/bird photo for AI-assisted
+        poultry health screening.
       </p>
 
       <input
         type="file"
         accept="image/*"
-        onChange={(e) => choose(e.target.files[0])}
+        onChange={(event) =>
+          chooseFile(event.target.files[0])
+        }
       />
 
       {preview && (
@@ -89,82 +107,223 @@ function Scanner() {
         />
       )}
 
-      <div style={{ marginTop: 14 }}>
-        <button
-          onClick={scan}
-          disabled={!file || loading}
-          style={styles.button}
-        >
-          {loading ? 'Screening…' : 'Run poultry screening'}
-        </button>
-      </div>
+      <br />
 
-      {error && <div style={styles.error}>{error}</div>}
+      <button
+        onClick={runDetection}
+        disabled={!file || loading}
+        style={styles.button}
+      >
+        {loading
+          ? 'Screening...'
+          : 'Run poultry screening'}
+      </button>
+
+      {error && (
+        <div style={styles.error}>
+          {error}
+        </div>
+      )}
 
       {result && (
         <div style={styles.result}>
-          <div style={styles.resultTop}>
+          <div style={styles.resultHeader}>
             <div>
-              <small>Bird</small>
-              <h3>{result.bird_type}</h3>
+              <small>Bird type</small>
+              <h3>
+                {result.bird_type ||
+                  'Unidentified bird'}
+              </h3>
             </div>
 
-            <div style={styles.conf}>
-              {result.confidence}%
+            <div style={styles.confidence}>
+              {result.confidence ?? '--'}%
               <small>confidence</small>
             </div>
           </div>
 
-          <h2>{result.disease_name}</h2>
+          <h2>
+            {result.disease_name ||
+              'Unable to determine'}
+          </h2>
 
           {result.scientific_name && (
-            <i>{result.scientific_name}</i>
+            <p>
+              <i>{result.scientific_name}</i>
+            </p>
           )}
 
           <p>
-            <b>Severity:</b> {result.severity}
+            <b>Severity:</b>{' '}
+            {result.severity ||
+              'Unable to determine'}
           </p>
 
-          <p>{result.description}</p>
+          {result.description && (
+            <p>{result.description}</p>
+          )}
 
-          <h4>Recommended action</h4>
+          {result.symptoms &&
+            result.symptoms.length > 0 && (
+              <>
+                <h4>Visible symptoms</h4>
 
-          <ul>
-            {(result.recommendations || []).map((x, i) => (
-              <li key={i}>{x}</li>
-            ))}
-          </ul>
+                <ul>
+                  {result.symptoms.map(
+                    (symptom, index) => (
+                      <li key={index}>
+                        {symptom}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </>
+            )}
+
+          {result.recommendations &&
+            result.recommendations.length > 0 && (
+              <>
+                <h4>Recommended action</h4>
+
+                <ul>
+                  {result.recommendations.map(
+                    (recommendation, index) => (
+                      <li key={index}>
+                        {recommendation}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </>
+            )}
         </div>
       )}
     </div>
   );
 }
 
+const demoMessages = [
+  {
+    name: 'Ravi Kumar',
+    message:
+      'Some of my chickens are not eating and look weak.',
+    time: '10:15 AM',
+  },
+  {
+    name: 'Priya Sharma',
+    message:
+      'A few birds have coughing and breathing problems.',
+    time: '11:30 AM',
+  },
+  {
+    name: 'Arun Patel',
+    message:
+      'Several chickens have reduced activity and watery droppings.',
+    time: '1:05 PM',
+  },
+  {
+    name: 'Meena Devi',
+    message:
+      'Two birds look sick and are staying away from the flock.',
+    time: '2:40 PM',
+  },
+];
+
+function DemoMessages() {
+  return (
+    <div style={styles.content}>
+      <div style={styles.panel}>
+        <h2 style={styles.sectionTitle}>
+          💬 Poultry Problem Messages
+        </h2>
+
+        <p style={styles.muted}>
+          Demo messages from poultry farmers reporting
+          poultry problems.
+        </p>
+
+        <div style={styles.demoBadge}>
+          DEMO DATA — NOT REAL WHATSAPP MESSAGES
+        </div>
+
+        {demoMessages.map((person, index) => (
+          <div
+            key={index}
+            style={styles.messageCard}
+          >
+            <div style={styles.messageHeader}>
+              <div>
+                <h3 style={styles.personName}>
+                  👤 {person.name}
+                </h3>
+
+                <small style={styles.muted}>
+                  Today · {person.time}
+                </small>
+              </div>
+
+              <span style={styles.newBadge}>
+                New
+              </span>
+            </div>
+
+            <p style={styles.messageText}>
+              "{person.message}"
+            </p>
+
+            <span style={styles.problemLabel}>
+              🐔 Poultry Problem
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [zones, setZones] = useState([]);
-  const [activeZone, setActiveZone] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-  const [tab, setTab] = useState('dashboard');
-  const [wa, setWa] = useState(null);
+  const [activeZone, setActiveZone] =
+    useState(null);
+  const [historyData, setHistoryData] =
+    useState([]);
+  const [tab, setTab] =
+    useState('dashboard');
 
-  const fetchFarmStatus = () =>
+  const fetchFarmStatus = () => {
     fetch(`${API}/farm-status`)
-      .then((r) => r.json())
-      .then(setZones)
-      .catch(console.error);
+      .then((response) => response.json())
+      .then((data) => setZones(data))
+      .catch((error) =>
+        console.error(
+          'Farm status error:',
+          error
+        )
+      );
+  };
 
-  const fetchHistory = (id) =>
-    fetch(`${API}/zone-history/${id}`)
-      .then((r) => r.json())
-      .then(setHistoryData)
-      .catch(console.error);
+  const fetchHistory = (zoneId) => {
+    fetch(`${API}/zone-history/${zoneId}`)
+      .then((response) => response.json())
+      .then((data) => setHistoryData(data))
+      .catch((error) =>
+        console.error(
+          'Zone history error:',
+          error
+        )
+      );
+  };
 
   useEffect(() => {
     fetchFarmStatus();
 
-    const i = setInterval(fetchFarmStatus, 5000);
+    const interval = setInterval(
+      fetchFarmStatus,
+      5000
+    );
 
-    return () => clearInterval(i);
+    return () =>
+      clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -172,136 +331,163 @@ function App() {
 
     fetchHistory(activeZone);
 
-    const i = setInterval(
+    const interval = setInterval(
       () => fetchHistory(activeZone),
       5000
     );
 
-    return () => clearInterval(i);
+    return () =>
+      clearInterval(interval);
   }, [activeZone]);
-
-  useEffect(() => {
-    fetch(`${API}/whatsapp/config`)
-      .then((r) => r.json())
-      .then(setWa)
-      .catch(() => {});
-  }, []);
 
   return (
     <div style={styles.app}>
       <aside style={styles.sidebar}>
-        <h1 style={styles.title}>Biosecurity Command</h1>
+        <h1 style={styles.title}>
+          Biosecurity Command
+        </h1>
 
-        <p style={styles.muted}>
+        <p style={styles.sidebarMuted}>
           Farm Signal · Live Monitoring
         </p>
 
         <div style={styles.nav}>
           <button
-            onClick={() => setTab('dashboard')}
+            onClick={() =>
+              setTab('dashboard')
+            }
             style={
               tab === 'dashboard'
                 ? styles.navActive
-                : styles.navBtn
+                : styles.navButton
             }
           >
             📊 Dashboard
           </button>
 
           <button
-            onClick={() => setTab('scanner')}
+            onClick={() =>
+              setTab('scanner')
+            }
             style={
               tab === 'scanner'
                 ? styles.navActive
-                : styles.navBtn
+                : styles.navButton
             }
           >
             🐔 Poultry Scanner
           </button>
 
           <button
-            onClick={() => setTab('whatsapp')}
+            onClick={() =>
+              setTab('messages')
+            }
             style={
-              tab === 'whatsapp'
+              tab === 'messages'
                 ? styles.navActive
-                : styles.navBtn
+                : styles.navButton
             }
           >
-            💬 WhatsApp
+            💬 Poultry Messages
           </button>
         </div>
 
         {tab === 'dashboard' && (
           <>
-            <h2 style={styles.label}>Zone Status</h2>
+            <h2 style={styles.label}>
+              Zone Status
+            </h2>
 
             {zones.map((zone) => {
-              const color =
-                zone.risk >= 80
+              const risk = Number(
+                zone.risk || 0
+              );
+
+              const riskColor =
+                risk >= 80
                   ? '#ef4444'
-                  : zone.risk >= 50
+                  : risk >= 50
                   ? '#eab308'
                   : '#22c55e';
 
-              const active = activeZone === zone.id;
+              const active =
+                activeZone === zone.id;
 
               return (
                 <div
                   key={zone.id}
                   onClick={() =>
-                    setActiveZone(active ? null : zone.id)
+                    setActiveZone(
+                      active
+                        ? null
+                        : zone.id
+                    )
                   }
                   style={{
                     ...styles.zone,
-                    borderLeft: `5px solid ${color}`,
+                    borderLeft: `5px solid ${riskColor}`,
                     background: active
                       ? '#334155'
-                      : '#1e293b'
+                      : '#1e293b',
                   }}
                 >
-                  <div style={styles.zoneHead}>
+                  <div
+                    style={styles.zoneHeader}
+                  >
                     <b>{zone.name}</b>
-                    <strong style={{ color }}>
-                      {zone.risk}%
+
+                    <strong
+                      style={{
+                        color: riskColor,
+                      }}
+                    >
+                      {risk}%
                     </strong>
                   </div>
 
-                  <div>{zone.status}</div>
+                  <div>
+                    {zone.status}
+                  </div>
 
                   {zone.note && (
-                    <small style={{ color: '#fca5a5' }}>
+                    <small
+                      style={
+                        styles.warningText
+                      }
+                    >
                       ⚠️ {zone.note}
                     </small>
                   )}
 
-                  {active && historyData.length > 0 && (
-                    <LineChart
-                      width={320}
-                      height={140}
-                      data={historyData}
-                    >
-                      <XAxis
-                        dataKey="time"
-                        stroke="#94a3b8"
-                        fontSize={10}
-                      />
+                  {active &&
+                    historyData.length > 0 && (
+                      <LineChart
+                        width={230}
+                        height={140}
+                        data={historyData}
+                      >
+                        <XAxis
+                          dataKey="time"
+                          stroke="#94a3b8"
+                          fontSize={10}
+                        />
 
-                      <YAxis
-                        domain={[0, 100]}
-                        stroke="#94a3b8"
-                        fontSize={10}
-                      />
+                        <YAxis
+                          domain={[0, 100]}
+                          stroke="#94a3b8"
+                          fontSize={10}
+                        />
 
-                      <Tooltip />
+                        <Tooltip />
 
-                      <Line
-                        type="monotone"
-                        dataKey="risk"
-                        stroke={color}
-                        strokeWidth={3}
-                      />
-                    </LineChart>
-                  )}
+                        <Line
+                          type="monotone"
+                          dataKey="risk"
+                          stroke={riskColor}
+                          strokeWidth={3}
+                        />
+                      </LineChart>
+                    )}
                 </div>
               );
             })}
@@ -312,11 +498,14 @@ function App() {
       <main style={styles.main}>
         {tab === 'dashboard' && (
           <MapContainer
-            center={[13.0827, 80.2707]}
+            center={[
+              13.0827,
+              80.2707,
+            ]}
             zoom={16}
             style={{
               height: '100%',
-              width: '100%'
+              width: '100%',
             }}
           >
             <TileLayer
@@ -324,19 +513,22 @@ function App() {
               attribution="&copy; OpenStreetMap contributors"
             />
 
-            {zones.map((z) => (
+            {zones.map((zone) => (
               <Marker
-                key={z.id}
-                position={[z.lat, z.lng]}
+                key={zone.id}
+                position={[
+                  zone.lat,
+                  zone.lng,
+                ]}
               >
                 <Popup>
-                  <b>{z.name}</b>
+                  <b>{zone.name}</b>
                   <br />
-                  Risk: {z.risk}%
+                  Risk: {zone.risk}%
                   <br />
-                  {z.status}
+                  {zone.status}
                   <br />
-                  {z.note || ''}
+                  {zone.note || ''}
                 </Popup>
               </Marker>
             ))}
@@ -345,47 +537,12 @@ function App() {
 
         {tab === 'scanner' && (
           <div style={styles.content}>
-            <Scanner />
+            <PoultryScanner />
           </div>
         )}
 
-        {tab === 'whatsapp' && (
-          <div style={styles.content}>
-            <div style={styles.panel}>
-              <h2 style={styles.sectionTitle}>
-                💬 WhatsApp connection
-              </h2>
-
-              <p>
-                This dashboard uses the backend WhatsApp webhook.
-                The farmer messages your{' '}
-                <b>WhatsApp Business number</b>, not the Vercel
-                website number.
-              </p>
-
-              <div style={styles.info}>
-                <b>Configured:</b>{' '}
-                {wa
-                  ? wa.configured
-                    ? 'Yes'
-                    : 'No'
-                  : 'Checking…'}
-                <br />
-
-                <b>Business number:</b>{' '}
-                {wa?.display_number || 'Not configured'}
-              </div>
-
-              <p style={styles.muted}>
-                The actual number is the WhatsApp Business number
-                connected in Meta WhatsApp Cloud API. It must be
-                configured in the backend as{' '}
-                <code>WHATSAPP_DISPLAY_NUMBER</code>, with its
-                Phone Number ID, access token, and webhook verify
-                token kept as server environment variables.
-              </p>
-            </div>
-          </div>
+        {tab === 'messages' && (
+          <DemoMessages />
         )}
       </main>
     </div>
@@ -396,48 +553,221 @@ const styles = {
   app: {
     display: 'flex',
     height: '100vh',
-    fontFamily: 'Inter, Arial, sans-serif',
+    fontFamily:
+      'Inter, Arial, sans-serif',
     background: '#f8fafc',
-    color: '#0f172a'
+    color: '#0f172a',
   },
 
   sidebar: {
     width: 280,
     background: '#0f172a',
     padding: 20,
-    color: '#fff',
-    flexShrink: 0
+    color: '#ffffff',
+    flexShrink: 0,
+    overflowY: 'auto',
   },
 
   main: {
     flex: 1,
     minWidth: 0,
     overflowY: 'auto',
-    padding: 24
   },
 
   title: {
-    fontSize: 24,
-    color: '#fff',
-    margin: 0
+    fontSize: 23,
+    marginTop: 0,
+    marginBottom: 6,
+  },
+
+  sidebarMuted: {
+    color: '#94a3b8',
+    fontSize: 13,
+  },
+
+  nav: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 24,
+    marginBottom: 28,
+  },
+
+  navButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#cbd5e1',
+    padding: '11px 12px',
+    borderRadius: 8,
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: 14,
+  },
+
+  navActive: {
+    border: 'none',
+    background: '#334155',
+    color: '#ffffff',
+    padding: '11px 12px',
+    borderRadius: 8,
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  label: {
+    fontSize: 14,
+    color: '#cbd5e1',
+    marginBottom: 10,
+  },
+
+  zone: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    cursor: 'pointer',
+    color: '#ffffff',
+  },
+
+  zoneHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+
+  warningText: {
+    display: 'block',
+    color: '#fca5a5',
+    marginTop: 5,
   },
 
   content: {
-    maxWidth: 1200,
-    margin: '0 auto'
+    padding: 28,
+    maxWidth: 1100,
+    margin: '0 auto',
   },
 
-  info: {
-    padding: 16,
-    borderRadius: 10,
-    background: '#fff',
-    border: '1px solid #e2e8f0',
-    marginBottom: 20
+  panel: {
+    background: '#ffffff',
+    padding: 24,
+    borderRadius: 16,
+    boxShadow:
+      '0 4px 20px rgba(0,0,0,0.08)',
+    marginBottom: 20,
+  },
+
+  sectionTitle: {
+    marginTop: 0,
+    marginBottom: 8,
   },
 
   muted: {
-    color: '#64748b'
-  }
+    color: '#64748b',
+  },
+
+  preview: {
+    display: 'block',
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: 400,
+    objectFit: 'contain',
+    marginTop: 18,
+    borderRadius: 12,
+  },
+
+  button: {
+    marginTop: 15,
+    padding: '11px 18px',
+    border: 'none',
+    borderRadius: 8,
+    background: '#0f172a',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  },
+
+  error: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+
+  result: {
+    marginTop: 22,
+    padding: 18,
+    borderRadius: 12,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+  },
+
+  resultHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  confidence: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'right',
+  },
+
+  demoBadge: {
+    display: 'inline-block',
+    padding: '6px 10px',
+    borderRadius: 6,
+    background: '#fef3c7',
+    color: '#92400e',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+
+  messageCard: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+
+  messageHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  personName: {
+    margin: 0,
+  },
+
+  messageText: {
+    fontSize: 15,
+    lineHeight: 1.5,
+    margin: '14px 0',
+  },
+
+  newBadge: {
+    background: '#dcfce7',
+    color: '#166534',
+    padding: '5px 9px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  problemLabel: {
+    display: 'inline-block',
+    background: '#fee2e2',
+    color: '#991b1b',
+    padding: '5px 9px',
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 };
 
 export default App;
