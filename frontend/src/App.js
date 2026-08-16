@@ -393,15 +393,218 @@ function App() {
         </div>
 
         {tab === 'dashboard' && (
-          <>
-            <h2 style={styles.label}>
-              Zone Status
-            </h2>
+  <div style={styles.dashboard}>
 
-            {zones.map((zone) => {
-              const risk = Number(
-                zone.risk || 0
-              );
+    {/* GLOBAL OVERVIEW */}
+    <h2 style={styles.overviewTitle}>GLOBAL OVERVIEW</h2>
+
+    <div style={styles.totalCard}>
+      <div style={styles.totalLabel}>
+        Total Birds Monitored
+      </div>
+      <div style={styles.totalNumber}>
+        24,500
+      </div>
+    </div>
+
+    {/* ZONE STATUS */}
+    <h2 style={styles.overviewTitle}>
+      ZONE STATUS ({zones.length || 3})
+    </h2>
+
+    <div style={styles.zoneCards}>
+
+      {zones.map((zone) => {
+        const risk = Number(zone.risk || 0);
+
+        const riskColor =
+          risk >= 90
+            ? '#ef4444'
+            : risk >= 70
+            ? '#f97316'
+            : '#eab308';
+
+        const status =
+          risk >= 90
+            ? 'Critical Risk'
+            : risk >= 70
+            ? 'High Risk'
+            : 'Normal';
+
+        return (
+          <div
+            key={zone.id}
+            style={{
+              ...styles.dashboardZone,
+              borderLeft:
+                `6px solid ${riskColor}`
+            }}
+          >
+
+            <div style={styles.dashboardZoneTop}>
+              <div>
+                <h3 style={styles.dashboardZoneName}>
+                  {zone.name}
+                </h3>
+
+                <div style={styles.dashboardStatus}>
+                  <span
+                    style={{
+                      ...styles.statusDot,
+                      background: riskColor
+                    }}
+                  />
+
+                  {zone.status || status}
+                </div>
+              </div>
+
+              <strong
+                style={{
+                  ...styles.dashboardRisk,
+                  color: riskColor
+                }}
+              >
+                {risk}%
+              </strong>
+            </div>
+
+            {zone.note && (
+              <div
+                style={{
+                  ...styles.alertBox,
+                  borderLeft:
+                    `4px solid ${riskColor}`
+                }}
+              >
+                ⚠️ {zone.note}
+              </div>
+            )}
+
+            {!zone.note && risk >= 70 && (
+              <div
+                style={{
+                  ...styles.alertBox,
+                  borderLeft:
+                    `4px solid ${riskColor}`
+                }}
+              >
+                ⚠️ Poultry health risk detected
+              </div>
+            )}
+
+          </div>
+        );
+      })}
+
+    </div>
+
+    {/* MAP */}
+    <h2 style={styles.overviewTitle}>
+      LIVE FARM MAP
+    </h2>
+
+    <div style={styles.mapBox}>
+      <MapContainer
+        center={[13.0827, 80.2707]}
+        zoom={16}
+        style={{
+          height: '500px',
+          width: '100%'
+        }}
+      >
+
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; OpenStreetMap contributors"
+        />
+
+        {/* FARM ZONES */}
+        {zones.map(z => (
+          <Marker
+            key={z.id}
+            position={[z.lat, z.lng]}
+          >
+            <Popup>
+              <b>{z.name}</b>
+              <br />
+              Risk: {z.risk}%
+              <br />
+              {z.status}
+              <br />
+              {z.note || ''}
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* POULTRY PROBLEM MARKERS */}
+        {[
+          {
+            id: 'p1',
+            name: 'Ravi Kumar',
+            lat: 13.0832,
+            lng: 80.2698,
+            message:
+              'Some of my chickens are not eating and look weak.',
+            risk: 'High'
+          },
+          {
+            id: 'p2',
+            name: 'Priya Sharma',
+            lat: 13.0845,
+            lng: 80.2715,
+            message:
+              'A few birds have coughing and breathing problems.',
+            risk: 'High'
+          },
+          {
+            id: 'p3',
+            name: 'Arun Patel',
+            lat: 13.0818,
+            lng: 80.2725,
+            message:
+              'Several chickens have reduced activity and watery droppings.',
+            risk: 'Moderate'
+          },
+          {
+            id: 'p4',
+            name: 'Meena Devi',
+            lat: 13.0808,
+            lng: 80.2688,
+            message:
+              'Two birds look sick and are staying away from the flock.',
+            risk: 'Moderate'
+          }
+        ].map(problem => (
+          <Marker
+            key={problem.id}
+            position={[
+              problem.lat,
+              problem.lng
+            ]}
+          >
+            <Popup>
+              <div>
+                <h3>🐔 Poultry Problem</h3>
+                <b>👤 {problem.name}</b>
+
+                <p>
+                  💬 {problem.message}
+                </p>
+
+                <strong>
+                  ⚠️ {problem.risk} Risk
+                </strong>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+      </MapContainer>
+    </div>
+
+  </div>
+)}
 
               const riskColor =
                 risk >= 80
@@ -818,6 +1021,104 @@ const styles = {
     fontSize: 12,
     fontWeight: 'bold',
   },
-};
+  dashboard: {
+    padding: 24,
+    maxWidth: 1200,
+    margin: '0 auto'
+  },
+
+  overviewTitle: {
+    fontSize: 18,
+    letterSpacing: 1.5,
+    marginTop: 10,
+    marginBottom: 18,
+    color: '#334155',
+    fontWeight: 800
+  },
+
+  totalCard: {
+    background: '#1e293b',
+    color: '#fff',
+    borderRadius: 16,
+    padding: 28,
+    marginBottom: 32,
+    boxShadow:
+      '0 8px 25px rgba(0,0,0,0.12)'
+  },
+
+  totalLabel: {
+    fontSize: 17,
+    marginBottom: 12,
+    color: '#cbd5e1'
+  },
+
+  totalNumber: {
+    fontSize: 48,
+    fontWeight: 800
+  },
+
+  zoneCards: {
+    display: 'grid',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 18,
+    marginBottom: 30
+  },
+
+  dashboardZone: {
+    background: '#1e293b',
+    color: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    minHeight: 145,
+    boxShadow:
+      '0 6px 18px rgba(0,0,0,0.12)'
+  },
+
+  dashboardZoneTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start'
+  },
+
+  dashboardZoneName: {
+    margin: 0,
+    fontSize: 20
+  },
+
+  dashboardStatus: {
+    marginTop: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    color: '#cbd5e1'
+  },
+
+  statusDot: {
+    width: 13,
+    height: 13,
+    borderRadius: '50%',
+    display: 'inline-block'
+  },
+
+  dashboardRisk: {
+    fontSize: 28
+  },
+
+  alertBox: {
+    marginTop: 18,
+    padding: 10,
+    background: '#3b2630',
+    color: '#fecaca',
+    fontSize: 13,
+    borderRadius: 5
+  },
+
+  mapBox: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    border: '1px solid #e2e8f0',
+    marginBottom: 30
+  },};
 
 export default App;
