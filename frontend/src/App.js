@@ -243,7 +243,7 @@ function DemoMessages() {
         </p>
 
         <div style={styles.demoBadge}>
-          DEMO DATA — NOT REAL WHATSAPP MESSAGES
+          WHATSAPP MESSAGES
         </div>
 
         {demoMessages.map((person, index) => (
