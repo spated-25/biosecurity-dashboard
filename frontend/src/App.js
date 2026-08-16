@@ -512,6 +512,56 @@ function App() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="&copy; OpenStreetMap contributors"
             />
+              {[
+  {
+    id: 'p1',
+    name: 'Ravi Kumar',
+    lat: 13.0832,
+    lng: 80.2698,
+    message: 'Some of my chickens are not eating and look weak.',
+    risk: 'High'
+  },
+  {
+    id: 'p2',
+    name: 'Priya Sharma',
+    lat: 13.0845,
+    lng: 80.2715,
+    message: 'A few birds have coughing and breathing problems.',
+    risk: 'High'
+  },
+  {
+    id: 'p3',
+    name: 'Arun Patel',
+    lat: 13.0818,
+    lng: 80.2725,
+    message: 'Several chickens have reduced activity and watery droppings.',
+    risk: 'Moderate'
+  },
+  {
+    id: 'p4',
+    name: 'Meena Devi',
+    lat: 13.0808,
+    lng: 80.2688,
+    message: 'Two birds look sick and are staying away from the flock.',
+    risk: 'Moderate'
+  }
+].map(problem => (
+  <Marker
+    key={problem.id}
+    position={[problem.lat, problem.lng]}
+  >
+    <Popup>
+      <div>
+        <h3>🐔 Poultry Problem</h3>
+        <b>👤 {problem.name}</b>
+        <p>💬 {problem.message}</p>
+        <strong>
+          ⚠️ {problem.risk} Risk
+        </strong>
+      </div>
+    </Popup>
+  </Marker>
+))}
 
             {zones.map((zone) => (
               <Marker
